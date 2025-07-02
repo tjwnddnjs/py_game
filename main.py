@@ -7,7 +7,7 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 400
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption('푸앙이런')
+pygame.display.set_caption('PUANG RUN')
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -31,9 +31,25 @@ jump_image = load_flipped("jump.png")
 
 # --- [시작화면용 이미지 불러오기] ---
 START_IMG_SIZE = (200, 200)
+
+# [추가] 타원형 마스킹 함수
+def make_ellipse_masked_surface(img, size):
+    mask = pygame.Surface(size, pygame.SRCALPHA)
+    pygame.draw.ellipse(mask, (255, 255, 255, 255), mask.get_rect())
+    img = pygame.transform.smoothscale(img, size)
+    masked_img = pygame.Surface(size, pygame.SRCALPHA)
+    masked_img.blit(img, (0, 0))
+    masked_img.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return masked_img
+
+# [수정] 시작 이미지 불러오기 함수
+def load_start_image(filename):
+    img = pygame.image.load(filename).convert_alpha()
+    return make_ellipse_masked_surface(img, START_IMG_SIZE)
+
 start_images = [
-    pygame.transform.smoothscale(pygame.image.load("start1.png").convert_alpha(), START_IMG_SIZE),
-    pygame.transform.smoothscale(pygame.image.load("start1.png").convert_alpha(), START_IMG_SIZE)
+    load_start_image("start1.png"),
+    load_start_image("start2.png")
 ]
 # --- [여기까지] ---
 
@@ -103,9 +119,9 @@ def draw_start_screen(start_anim_frame):
     start_img = start_images[start_anim_frame % 2]
     screen.blit(start_img, (SCREEN_WIDTH // 2 - START_IMG_SIZE[0] // 2, 40))
     font = pygame.font.Font(font_path, 30)
-    title = font.render("푸앙이런", True, BLACK)
+    title = font.render("", True, BLACK)
     screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 20))
-    button_font = pygame.font.Font(font_path, 20)
+    button_font = pygame.font.Font(font_path, 25)
     button_text = button_font.render("Game Start", True, WHITE)
     button_rect = pygame.Rect(0, 0, 150, 50)
     button_rect.center = (SCREEN_WIDTH // 2, 300)
@@ -216,7 +232,7 @@ def main_game():
         screen.fill(WHITE)
         player_group.draw(screen)
         obstacle_group.draw(screen)
-        pygame.draw.rect(screen, (255, 0, 0), player.hitbox, 2)
+        # pygame.draw.rect(screen, (255, 0, 0), player.hitbox, 2) # 디버깅용 히트박스 표시
 
         # 점수 표시
         score_font = pygame.font.Font(font_path, 30)
