@@ -15,8 +15,7 @@ BLACK = (0, 0, 0)
 clock = pygame.time.Clock()
 FPS = 60
 
-obstacle_speed = -10
-
+obstacle_speed_init = -10  # 초기 장애물 속도
 PLAYER_SIZE = (150, 150)
 
 def load_flipped(filename):
@@ -38,6 +37,8 @@ start_images = [
 ]
 # --- [여기까지] ---
 
+font_path = "C:/Windows/Fonts/malgun.ttf"  # 폰트 경로
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -47,9 +48,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = 50
         self.rect.y = SCREEN_HEIGHT - PLAYER_SIZE[1]
-        # --- [히트박스: 이미지 중앙 하단 기준, 크기 70x110] ---
         self.hitbox = pygame.Rect(0, 0, 70, 110)
-        # ---------------------------------------------------
         self.jump_speed = -15
         self.gravity = 1
         self.speed_y = 0
@@ -71,10 +70,8 @@ class Player(pygame.sprite.Sprite):
             self.rect.y = SCREEN_HEIGHT - PLAYER_SIZE[1]
             self.is_jumping = False
 
-        # --- [히트박스 위치를 이미지 중앙 하단에 맞춤] ---
         self.hitbox.centerx = self.rect.centerx
         self.hitbox.bottom = self.rect.bottom
-        # -------------------------------------------------
 
         if self.is_jumping:
             self.image = self.jump_image
@@ -86,37 +83,30 @@ class Player(pygame.sprite.Sprite):
                 self.run_anim_timer = 0
 
 class Obstacle(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, speed):
         super().__init__()
         self.image = pygame.Surface((30, 50))
         self.image.fill((200, 0, 0))
         self.rect = self.image.get_rect()
         self.rect.x = SCREEN_WIDTH
         self.rect.y = SCREEN_HEIGHT - 50
-        self.speed_x = obstacle_speed
+        self.speed_x = speed
+        self.passed = False
 
     def update(self):
         self.rect.x += self.speed_x
         if self.rect.right < 0:
             self.kill()
 
-font_path = "C:/Windows/Fonts/malgun.ttf"  # 폰트 경로
-
-# --- [시작화면 그리기: 이미지 2장 번갈아 표시] ---
 def draw_start_screen(start_anim_frame):
     screen.fill(WHITE)
-    # 캐릭터 이미지 애니메이션
     start_img = start_images[start_anim_frame % 2]
-    screen.blit(start_img,   (SCREEN_WIDTH // 2 - START_IMG_SIZE[0] // 2, 40))
-
-    # 타이틀
+    screen.blit(start_img, (SCREEN_WIDTH // 2 - START_IMG_SIZE[0] // 2, 40))
     font = pygame.font.Font(font_path, 30)
-    title = font.render("", True, BLACK)
+    title = font.render("푸앙이런", True, BLACK)
     screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 20))
-
-    # 버튼
-    button_font = pygame.font.Font(font_path, 30)
-    button_text = button_font.render("게임 시작", True, WHITE)
+    button_font = pygame.font.Font(font_path, 20)
+    button_text = button_font.render("Game Start", True, WHITE)
     button_rect = pygame.Rect(0, 0, 150, 50)
     button_rect.center = (SCREEN_WIDTH // 2, 300)
     pygame.draw.rect(screen, (100, 180, 255), button_rect, border_radius=20)
@@ -138,62 +128,108 @@ def wait_for_start():
                 if button_rect.collidepoint(event.pos):
                     return
         anim_timer += 1
-        if anim_timer >= 20:  # 20프레임마다 이미지 전환 (조절 가능)
+        if anim_timer >= 20:
             anim_frame = (anim_frame + 1) % 2
             anim_timer = 0
         clock.tick(FPS)
 
-# --- 게임 시작 전 대기 화면 ---
-wait_for_start()
+def show_game_over_screen(score):
+    while True:
+        screen.fill(WHITE)
+        font = pygame.font.Font(font_path, 60)
+        over_text = font.render("Game Over", True, (200, 0, 0))
+        screen.blit(over_text, (SCREEN_WIDTH // 2 - over_text.get_width() // 2, 80))
 
-# --- 본 게임 루프 ---
-player = Player()
-player_group = pygame.sprite.Group()
-player_group.add(player)
-obstacle_group = pygame.sprite.Group()
+        score_font = pygame.font.Font(font_path, 40)
+        score_text = score_font.render(f"Score: {score}", True, BLACK)
+        screen.blit(score_text, (SCREEN_WIDTH // 2 - score_text.get_width() // 2, 170))
 
-OBSTACLE_EVENT = pygame.USEREVENT + 1
-SPEEDUP_EVENT = pygame.USEREVENT + 2
+        button_font = pygame.font.Font(font_path, 35)
+        button_text = button_font.render("Get Ready", True, WHITE)
+        button_rect = pygame.Rect(0, 0, 200, 60)
+        button_rect.center = (SCREEN_WIDTH // 2, 260)
+        pygame.draw.rect(screen, (100, 180, 255), button_rect, border_radius=20)
+        screen.blit(button_text, (button_rect.centerx - button_text.get_width() // 2,
+                                  button_rect.centery - button_text.get_height() // 2))
 
-obstacle_interval = 1500
-pygame.time.set_timer(OBSTACLE_EVENT, obstacle_interval)
-pygame.time.set_timer(SPEEDUP_EVENT, 10000)
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if button_rect.collidepoint(event.pos):
+                    return  # 다시 시작
 
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == OBSTACLE_EVENT:
-            obstacle = Obstacle()
-            obstacle_group.add(obstacle)
-            obstacle_interval = random.randint(400, 2000)
-            pygame.time.set_timer(OBSTACLE_EVENT, obstacle_interval)
-        if event.type == SPEEDUP_EVENT:
-            obstacle_speed -= 2
-            print(f"장애물 속도 증가! 현재 속도: {abs(obstacle_speed)}")
+        clock.tick(FPS)
 
-    player_group.update()
-    obstacle_group.update()
+def main_game():
+    global obstacle_speed_init
+    obstacle_speed = obstacle_speed_init
+    player = Player()
+    player_group = pygame.sprite.Group()
+    player_group.add(player)
+    obstacle_group = pygame.sprite.Group()
 
-    # --- [히트박스 기준 충돌 체크] ---
-    for obstacle in obstacle_group:
-        if player.hitbox.colliderect(obstacle.rect):
-            print('게임 오버!')
-            running = False
-            break
-    # ---------------------------------
+    OBSTACLE_EVENT = pygame.USEREVENT + 1
+    SPEEDUP_EVENT = pygame.USEREVENT + 2
 
-    # 화면 그리기
-    screen.fill(WHITE)
-    player_group.draw(screen)
-    obstacle_group.draw(screen)
-    # --- [히트박스 시각화 (빨간 테두리)] ---
-    pygame.draw.rect(screen, (255, 0, 0), player.hitbox, 2)
-    # --------------------------------------
-    pygame.display.flip()
-    clock.tick(FPS)
+    obstacle_interval = 1500
+    pygame.time.set_timer(OBSTACLE_EVENT, obstacle_interval)
+    pygame.time.set_timer(SPEEDUP_EVENT, 10000)
 
-pygame.quit()
-sys.exit()
-      
+    score = 0
+    base_score_per_jump = 100
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == OBSTACLE_EVENT:
+                obstacle = Obstacle(obstacle_speed)
+                obstacle_group.add(obstacle)
+                obstacle_interval = random.randint(400, 2000)
+                pygame.time.set_timer(OBSTACLE_EVENT, obstacle_interval)
+            if event.type == SPEEDUP_EVENT:
+                obstacle_speed -= 2
+                base_score_per_jump += 10
+                print(f"Current Velocity : {abs(obstacle_speed)}, Score : {base_score_per_jump}")
+
+        player_group.update()
+        obstacle_group.update()
+
+        # 충돌 체크
+        for obstacle in obstacle_group:
+            if player.hitbox.colliderect(obstacle.rect):
+                running = False
+                break
+
+        # 장애물 뛰어넘음 판정 및 점수 증가
+        for obstacle in obstacle_group:
+            if not obstacle.passed and obstacle.rect.right < player.hitbox.left:
+                score += base_score_per_jump
+                obstacle.passed = True
+
+        # 화면 그리기
+        screen.fill(WHITE)
+        player_group.draw(screen)
+        obstacle_group.draw(screen)
+        pygame.draw.rect(screen, (255, 0, 0), player.hitbox, 2)
+
+        # 점수 표시
+        score_font = pygame.font.Font(font_path, 30)
+        score_text = score_font.render(f"Score: {score}", True, BLACK)
+        screen.blit(score_text, (20, 20))
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    return score
+
+# --- 메인 루프 ---
+while True:
+    wait_for_start()
+    final_score = main_game()
+    show_game_over_screen(final_score)
